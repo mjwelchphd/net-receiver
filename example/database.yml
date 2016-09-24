@@ -1,0 +1,20 @@
+dev:
+  adapter: mysql2
+  host: localhost
+  database: example_dev
+  username: example
+  password: cwci7k7YwxSILa7yuwq
+  encoding: utf8
+  reconnect: false
+  port: 3306
+
+live:
+  adapter: mysql2
+  host: localhost
+  database: example_live
+  username: example
+  password: cwci7k7YwxSILa7yuwq
+  encoding: utf8
+  reconnect: true
+  port: 3306
+

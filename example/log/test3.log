@@ -1,0 +1,58 @@
+# Logfile created on 2016-09-24 02:38:33 +0000 by logger.rb/47272
+2016-09-24 02:38:33 [INFO] Database "example_dev" opened
+2016-09-24 02:38:33 [INFO] (005447) Starting RubyMTA at 2016-09-24 02:38:33 UTC, pid=5447
+2016-09-24 02:38:33 [INFO] (005447) listening on port 2001...
+2016-09-24 02:38:33 [INFO] (005447) listening on port 2000...
+2016-09-24 02:38:42 [INFO] (005546) Connection accepted on port 2000 from port 40838 at ::ffff:107.185.187.182 (cpe-107-185-187-182.socal.res.rr.com)
+2016-09-24 02:38:42 [INFO] (005546) New item of mail opened with id 'ODZM0I-BD4A8T-HL'
+2016-09-24 02:38:42 [INFO] (005546) <-  220 2.0.0 ESMTP RubyMTA 0.01 SAT, 24 SEP 2016 02:38:42 +0000
+2016-09-24 02:38:42 [INFO] (005546)  -> EHLO gmail.com
+2016-09-24 02:38:42 [INFO] (005546) <-  250-2.0.0 gmail.com Hello
+2016-09-24 02:38:42 [INFO] (005546) <-  250-STARTTLS
+2016-09-24 02:38:42 [INFO] (005546) <-  250-AUTH PLAIN
+2016-09-24 02:38:42 [INFO] (005546) <-  250 HELP
+2016-09-24 02:38:42 [INFO] (005546)  -> STARTTLS
+2016-09-24 02:38:42 [INFO] (005546) <-  220 2.0.0 TLS go ahead
+2016-09-24 02:38:43 [INFO] (005546)  ~> EHLO gmail.com
+2016-09-24 02:38:43 [INFO] (005546) <~  250-2.0.0 gmail.com Hello
+2016-09-24 02:38:43 [INFO] (005546) <~  250-AUTH PLAIN
+2016-09-24 02:38:43 [INFO] (005546) <~  250 HELP
+2016-09-24 02:38:43 [INFO] (005546)  ~> MAIL FROM:<jamie@example.com>
+2016-09-24 02:38:43 [INFO] (005546) <~  250 2.0.0 OK
+2016-09-24 02:38:43 [INFO] (005546)  ~> RCPT TO:<coco@example.com>
+2016-09-24 02:38:43 [INFO] (005546) <~  250 2.0.0 OK
+2016-09-24 02:38:43 [INFO] (005546)  ~> DATA
+2016-09-24 02:38:43 [INFO] (005546)  -> (email message)
+2016-09-24 02:38:43 [INFO] (005546) <~  250 2.0.0 OK id=ODZM0I-BD4A8T-HL
+2016-09-24 02:38:43 [INFO] (005546)  ~> QUIT
+2016-09-24 02:38:43 [INFO] (005546) <~  221 2.0.0 OK example.com closing connection
+2016-09-24 02:38:43 [INFO] (005546) Received mail with id 'ODZM0I-BD4A8T-HL'
+2016-09-24 02:38:43 [INFO] (005546) Connection closed on port 2000 by example.com
+2016-09-24 02:38:56 [INFO] (005572) Connection accepted on port 2001 from port 38436 at ::ffff:107.185.187.182 (cpe-107-185-187-182.socal.res.rr.com)
+2016-09-24 02:38:56 [INFO] (005572) New item of mail opened with id 'ODZM0W-PRPAYD-49'
+2016-09-24 02:38:56 [INFO] (005572) <-  220 2.0.0 ESMTP RubyMTA 0.01 SAT, 24 SEP 2016 02:38:56 +0000
+2016-09-24 02:38:56 [INFO] (005572)  -> EHLO mail.example.com
+2016-09-24 02:38:56 [INFO] (005572) <-  250-2.0.0 mail.example.com Hello
+2016-09-24 02:38:56 [INFO] (005572) <-  250-STARTTLS
+2016-09-24 02:38:56 [INFO] (005572) <-  250-AUTH PLAIN
+2016-09-24 02:38:56 [INFO] (005572) <-  250 HELP
+2016-09-24 02:38:57 [INFO] (005572)  -> STARTTLS
+2016-09-24 02:38:57 [INFO] (005572) <-  220 2.0.0 TLS go ahead
+2016-09-24 02:38:57 [INFO] (005572)  ~> EHLO mail.example.com
+2016-09-24 02:38:57 [INFO] (005572) <~  250-2.0.0 mail.example.com Hello
+2016-09-24 02:38:57 [INFO] (005572) <~  250-AUTH PLAIN
+2016-09-24 02:38:57 [INFO] (005572) <~  250 HELP
+2016-09-24 02:38:57 [INFO] (005572)  ~> AUTH PLAIN ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq=
+2016-09-24 02:38:57 [INFO] (005572) <~  235 2.0.0 Authentication succeeded
+2016-09-24 02:38:57 [INFO] (005572)  ~> MAIL FROM:<admin@example.com>
+2016-09-24 02:38:57 [INFO] (005572) <~  250 2.0.0 OK
+2016-09-24 02:38:57 [INFO] (005572)  ~> RCPT TO:<coco@example.com>
+2016-09-24 02:38:57 [INFO] (005572) <~  250 2.0.0 OK
+2016-09-24 02:38:58 [INFO] (005572)  ~> DATA
+2016-09-24 02:38:58 [INFO] (005572)  -> (email message)
+2016-09-24 02:38:58 [INFO] (005572) <~  250 2.0.0 OK id=ODZM0W-PRPAYD-49
+2016-09-24 02:38:58 [INFO] (005572)  ~> QUIT
+2016-09-24 02:38:58 [INFO] (005572) <~  221 2.0.0 OK example.com closing connection
+2016-09-24 02:38:58 [INFO] (005572) Received mail with id 'ODZM0W-PRPAYD-49'
+2016-09-24 02:38:58 [INFO] (005572) Connection closed on port 2001 by example.com
+2016-09-24 02:39:04 [INFO] (005447) example.com terminated by admin ^C
