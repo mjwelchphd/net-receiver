@@ -66,8 +66,8 @@ module Net
     def initialize(connection, options)
       @connection = connection
       @option_list = [[:ehlo_validation_check, false], [:sender_character_check, true],
-        [:recipient_character_check, false], [:sender_mx_check, true],
-        [:recipient_mx_check, false],[:max_failed_msgs_per_period,3]]
+        [:recipient_character_check, true], [:sender_mx_check, true],
+        [:recipient_mx_check, true],[:max_failed_msgs_per_period,3]]
       @options = options
       @option_list.each do |key,value|
         @options[key] = value if !options.has_key?(key)
@@ -87,7 +87,7 @@ module Net
     end
 
     def write_text(text, echo)
-puts "<#{@enc_ind}  #{text.inspect}"
+puts "<#{@enc_ind}  #{text.inspect}" # DEBUG!
       @connection.write(text)
       @connection.write(CRLF)
       @has_level_5_warnings = true if text[0]=='5'
@@ -133,17 +133,17 @@ puts "<#{@enc_ind}  #{text.inspect}"
             text = "SLAM"
           end
           LOG.info("%06d"%Process::pid) {" #{@enc_ind}> #{text}"} if echo && LogConversation
-puts " #{@enc_ind}> #{text.inspect}"
+puts " #{@enc_ind}> #{text.inspect}" # DEBUG!
           return text
         end
       rescue Errno::EIO => e
         LOG.error("%06d"%Process::pid) {"#{e.to_s}"}
         raise Quit
       rescue Timeout::Error => e
-puts " #{@enc_ind}> \"TIMEOUT\""
+puts " #{@enc_ind}> \"TIMEOUT\"" # DEBUG!
         return "TIMEOUT"
       end
-puts " #{@enc_ind}> *669* Investigate why this got here"
+puts " #{@enc_ind}> *669* Investigate why this got here" # DEBUG!
     end
 
 #-------------------------------------------------------#
@@ -153,9 +153,17 @@ puts " #{@enc_ind}> *669* Investigate why this got here"
       # the value gets set in both MAIL FROM and RCPT TO
       part[:value] = value
 
-      # there MUST be a sender/recipient address
-      return "501 5.1.7 '#{part[:value]}' No proper address (<...>) on the #{Kind[kind]} line" \
-        if (m = value.match(/^(.*)<(.+@.+\..+)>$/)).nil?
+      # check for a bounce message
+      case
+      when (kind==:mailfrom) & (m = value.match(/^(.*)<>$/))
+        # it's a bounce message
+        part[:name] = m[1].strip
+        part[:url] = "<>"
+        return nil
+      when (m = value.match(/^(.*)<(.+@.+\..+)>$/)).nil?
+        # there MUST be a sender/recipient address
+        return "501 5.1.7 '#{part[:value]}' No proper address (<...>) on the #{Kind[kind]} line" \
+      end
 
       # break up the address
       part[:name] = m[1].strip

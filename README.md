@@ -166,7 +166,7 @@ In this example, `def mail_from` overrides the method of the same name in Receiv
   :sender_character_check | true | This makes `receiver` test for legal characters on the MAIL FROM address.
   :recipient_character_check | false | This makes `receiver`test for legal characters on the RCPT TO address.
   :sender_mx_check | true | Tries to obtain the MX name and IP from the DNS for MAIL FROM.
-  :recipient_mx_check | false | Tries to obtain the MX name and IP from the DNS for RCPT TO.
+  :recipient_mx_check | true | Tries to obtain the MX name and IP from the DNS for RCPT TO.
   :max_failed_msgs_per_period | 3 | I use this to say, "after 3 failed attempts, lock out the sender for s short period of time (10 minutes in my case)."
 
 I may add more defaults to this list in the future, but I'll try to make them generalized, so they fit anyone's need.
