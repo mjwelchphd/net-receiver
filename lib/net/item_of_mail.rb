@@ -14,6 +14,7 @@
 # See the README.md for documentation.
 
 require 'sequel'
+require 'spf'
 
 module Net
   class ItemOfMail < Hash
@@ -33,45 +34,11 @@ module Net
       self[:time] = Time.now.strftime("%Y-%m-%d %H:%M:%S %z")
     end
 
-    def parse_headers
-      self[:data][:headers] = {}
-      header = ""
-      self[:data][:text].each do |line|
-        case
-        when line.nil?
-          break
-        when line =~ /^[ \t]/
-          header << String::new(line)
-        when line.empty?
-          break
-        when !header.empty?
-          keyword, value = header.split(":", 2)
-          self[:data][:headers][keyword.downcase.gsub("-","_").to_sym] = value.strip
-          header = String::new(line)
-        else
-          header = String::new(line)
-        end
-      end
-      if !header.empty?
-        keyword, value = header.split(":", 2)
-        self[:data][:headers][keyword.downcase.gsub("-","_").to_sym] = if !value.nil? then value.strip else "" end
-      end
-    end
-
-    def spf_check(scope,identity,ip,ehlo)
-      spf_server = SPF::Server.new
-      begin
-        request = SPF::Request.new(
-          versions:      [1, 2],
-          scope:         scope,
-          identity:      identity,
-          ip_address:    ip,
-          helo_identity: ehlo)
-        spf_server.process(request).code
-      rescue SPF::OptionRequiredError => e
-        @log.info("%06d"%Process::pid) {"SPF check failed: #{e.to_s}"}
-        :fail
-      end
+    def reconstituted_email
+      text = []
+      self[:data][:headers].each { |k,v| text << "#{k}:#{v}" }
+      text.concat(self[:data][:text])
+      text.join(CRLF)+CRLF
     end
   end
 end

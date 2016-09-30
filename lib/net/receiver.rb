@@ -17,8 +17,9 @@ require 'net/server'
 require 'net/item_of_mail'
 require 'net/extended_classes'
 require 'pdkim'
+require 'spf'
 
-class Quit < Exception; end
+class Slam < Exception; end
 
 module Net
 
@@ -27,8 +28,6 @@ module Net
     CRLF = "\r\n"
     Patterns = [
       [0, "[ /t]*QUIT[ /t]*", :do_quit],
-      [0, "[ /t]*SLAM[ /t]*", :do_slam],
-      [0, "[ /t]*TIMEOUT[ /t]*", :do_timeout],
       [1, "[ /t]*AUTH[ /t]*(.+)", :do_auth],
       [1, "[ /t]*EHLO(.*)", :do_ehlo],
       [1, "[ /t]*EXPN[ /t]*", :do_expn],
@@ -36,7 +35,6 @@ module Net
       [1, "[ /t]*HELP[ /t]*", :do_help],
       [1, "[ /t]*NOOP[ /t]*", :do_noop],
       [1, "[ /t]*RSET[ /t]*", :do_rset],
-      [1, "[ /t]*TIMEOUT[ /t]*", :do_timeout],
       [1, "[ /t]*VFRY[ /t]*", :do_vfry],
       [2, "[ /t]*STARTTLS[ /t]*", :do_starttls],
       [2, "[ /t]*MAIL FROM[ /t]*:[ \t]*(.+)", :do_mail_from],
@@ -67,7 +65,8 @@ module Net
       @connection = connection
       @option_list = [[:ehlo_validation_check, false], [:sender_character_check, true],
         [:recipient_character_check, true], [:sender_mx_check, true],
-        [:recipient_mx_check, true],[:max_failed_msgs_per_period,3]]
+        [:recipient_mx_check, true],[:max_failed_msgs_per_period,3],
+        [:copy_to_sysout, false]]
       @options = options
       @option_list.each do |key,value|
         @options[key] = value if !options.has_key?(key)
@@ -75,80 +74,41 @@ module Net
       @enc_ind = '-'
     end
 
-#-------------------------------------------------------#
-#--- Send text to the client ---------------------------#
-#-------------------------------------------------------#
-    def log_msg_if_level_5(msg)
-      if msg[0]=='5'
-        m = msg.match(/^([0-9]{3} [0-9]\.[0-9]\.[0-9] )/)
-        start = if !m then 0 else m[1].size end
-        LOG.error("%06d"%Process::pid) {msg[start..-1]}
-      end
-    end
-
-    def write_text(text, echo)
-puts "<#{@enc_ind}  #{text.inspect}" # DEBUG!
-      @connection.write(text)
-      @connection.write(CRLF)
-      @has_level_5_warnings = true if text[0]=='5'
-      LOG.info("%06d"%Process::pid) {"<#{@enc_ind}  #{text}"} if echo && LogConversation
-      log_msg_if_level_5(text)
-    end
+#=======================================================================
+# send text to the client
 
     def send_text(text,echo=true)
-      begin
-        case
-        when text.nil?
-          # do nothing
-        when text.class==Array
-          text.each { |line| write_text(line, echo) }
-        when text.class==String
-          write_text(text, echo)
+      if !text.nil?
+        text = [ text ] if text.class==String
+        text.each do |line|
+          puts "<#{@enc_ind}  #{text.inspect}" if @options[:copy_to_sysout]
+          @connection.write(line)
+          @connection.write(CRLF)
+          @has_level_5_warnings = true if line[0]=='5'
+          LOG.info("%06d"%Process::pid) {"<#{@enc_ind}  #{text}"} if echo && LogConversation
+          m = line.match(/^5[0-9]{2} [0-9]\.[0-9]\.[0-9] (.*)$/)
+          LOG.error("%06d"%Process::pid) {m[1]} if m
         end
-      rescue Errno::EPIPE => e
-        LOG.error("%06d"%Process::pid) {"#{e.to_s}#{Unexpectedly}"}
-        raise Quit
-      rescue Errno::EIO => e
-        LOG.error("%06d"%Process::pid) {"#{e.to_s}#{Unexpectedly}"}
-        raise Quit
       end
+      return nil
     end
 
-#-------------------------------------------------------#
-#--- Receive text from the client ----------------------#
-#-------------------------------------------------------#
+#=======================================================================
+# receive text from the client
+
     def recv_text(echo=true)
-      begin
-        Timeout.timeout(ReceiverTimeout) do
-          begin
-            temp = @connection.gets
-            if temp.nil?
-              LOG.warn("%06d"%Process::pid) {"The client abruptly closed the connection"}
-              text = "QUIT"
-            else
-              text = temp.chomp
-            end
-          rescue Errno::ECONNRESET => e
-            LOG.warn("%06d"%Process::pid) {"The client slammed the connection shut"}
-            text = "SLAM"
-          end
-          LOG.info("%06d"%Process::pid) {" #{@enc_ind}> #{text}"} if echo && LogConversation
-puts " #{@enc_ind}> #{text.inspect}" # DEBUG!
-          return text
-        end
-      rescue Errno::EIO => e
-        LOG.error("%06d"%Process::pid) {"#{e.to_s}"}
-        raise Quit
-      rescue Timeout::Error => e
-puts " #{@enc_ind}> \"TIMEOUT\"" # DEBUG!
-        return "TIMEOUT"
+      Timeout.timeout(ReceiverTimeout) do
+        raise Slam if (temp = @connection.gets).nil?
+        text = temp.chomp
+        LOG.info("%06d"%Process::pid) {" #{@enc_ind}> #{text}"} if echo && LogConversation
+        puts " #{@enc_ind}> #{text.inspect}" if @options[:copy_to_sysout]
+        return text
       end
-puts " #{@enc_ind}> *669* Investigate why this got here" # DEBUG!
     end
 
-#-------------------------------------------------------#
-#--- Parse the email address and investigate it --------#
-#-------------------------------------------------------#
+#=======================================================================
+# parse the email address and investigate it
+
     def psych_value(kind, part, value)
       # the value gets set in both MAIL FROM and RCPT TO
       part[:value] = value
@@ -206,9 +166,9 @@ puts " #{@enc_ind}> *669* Investigate why this got here" # DEBUG!
       return nil
     end
 
-#-------------------------------------------------------#
-#--- Receive the connection ----------------------------#
-#-------------------------------------------------------#
+#=======================================================================
+# receive the connection
+
     def receive(local_port, local_hostname, remote_port, remote_hostname, remote_ip)
       # Start a hash to collect the information gathered from the receive process
       @mail = Net::ItemOfMail::new(local_port, local_hostname, remote_port, remote_hostname, remote_ip)
@@ -234,8 +194,6 @@ puts " #{@enc_ind}> *669* Investigate why this got here" # DEBUG!
             case
             when pattern[2]==:do_quit
               send_text(do_quit(m[1]))
-            when pattern[2]==:do_slam
-              send_text(do_slam(m[1]))
             when @mail[:prohibited]
               send_text("450 4.7.1 Sender IP #{@mail[:remote_ip]} is temporarily prohibited from sending")
             when pattern[0]>@level
@@ -251,18 +209,18 @@ puts " #{@enc_ind}> *669* Investigate why this got here" # DEBUG!
           response = "500 5.5.1 Unrecognized command #{text.inspect}, incorrectly formatted command, or command out of sequence"
           send_text(response)
         end
-      rescue OpenSSL::SSL::SSLError => e
-        LOG.error("%06d"%Process::pid) {"SSL error: #{e.inspect}"}
-        e.backtrace.each { |line| LOG.error("%06d"%Process::pid) {line} }
-        @done = true
       end until @done
 
-    rescue Quit => e
+    rescue OpenSSL::SSL::SSLError, Errno::ECONNRESET, Errno::EIO, Errno::EPIPE, Timeout::Error => e
+      LOG.error("%06d"%Process::pid) {e}
       @mail[:accepted] = false
-      # nothing to do but exit
+
+    rescue Slam
+      LOG.info("%06d"%Process::pid) {"Sender slammed the connection shut IP=#{@mail[:remote_ip]}"}
+      @mail[:accepted] = false
 
     rescue => e
-      # this is the "rescue of last resort"... "for when sh*t happens"
+      # this is the "rescue of last resort"... for "when sh*t happens"
       LOG.fatal("%06d"%Process::pid) {e.inspect}
       e.backtrace.each { |line| LOG.fatal("%06d"%Process::pid) {line} }
       @mail[:accepted] = false
@@ -280,7 +238,8 @@ puts " #{@enc_ind}> *669* Investigate why this got here" # DEBUG!
     end
 
 #=======================================================================
-# these methods provide all the basic processing
+# these methods provide all the basic processing that needs to be done
+# regardless of any additional checks that you make want to make
 
     def ok?(msg)
       msg[0]!='4' && msg[0]!='5'
@@ -316,19 +275,6 @@ puts " #{@enc_ind}> *669* Investigate why this got here" # DEBUG!
     def do_quit(value)
       @done = true if ok?(msg = quit(value))
       return msg
-    end
-
-    def do_slam(value)
-      LOG.info("%06d"%Process::pid) {"Sender slammed the connection shut IP=#{@mail[:remote_ip]}"}
-      @done = true
-      @mail[:accepted] = false
-      return nil
-    end
-
-    def do_timeout(value)
-      @done = true
-      @mail[:accepted] = false
-      return ("501 5.4.7 Closing connection due to inactivity--#{@mail[:id]} was NOT saved")
     end
 
     def do_auth(value)
@@ -387,7 +333,6 @@ puts " #{@enc_ind}> *669* Investigate why this got here" # DEBUG!
     def do_mail_from(value)
       @mail[:mailfrom] = p = {:accepted=>false}
       @mail[:rcptto] = []
-# TODO! A special case is the NULL envelope sender address (i.e. MAIL FROM: <>)
       msg = psych_value(:mailfrom, p, value)
       return (msg) if msg
 
@@ -413,33 +358,36 @@ puts " #{@enc_ind}> *669* Investigate why this got here" # DEBUG!
     end
 
     def do_data(value)
-# http://www.tldp.org/HOWTO/Spam-Filtering-for-MX/datachecks.html
       @mail[:data] = body = {}
       body[:accepted] = false
       # receive the body of the mail
       body[:value] = value # this should be nil -- no argument on the DATA command
+      body[:headers] = headers = {}
       body[:text] = lines = []
       send_text("354 3.0.0 Enter message, ending with \".\" on a line by itself", false)
       LOG.info("%06d"%Process::pid) {" -> (email message)"} if LogConversation
+
+      # get the headers into a hash
       while true
         text = recv_text(false)
-        break if text.nil? # the  client closed the channel abruptly
-        lines << text
+        if text.strip.empty?
+          body[:accepted] = true
+          break
+        end
+        m = text.match(/^(.+?):(.+)$/)
+        return "501 5.5.2 Malformed header" if m.nil?
+        headers[m[1]] = m[2]
+      end
+
+      # get the body into an array of strings
+      while true
+        text = recv_text(false)
         if text=="."
           body[:accepted] = true
           break
         end
+        lines << text
       end
-      @mail.parse_headers
-# should contain:
-# To: ...
-# Date: ...
-# From: ...
-# Subject: ...
-# Message-ID: ...
-
-# DKIM
-# SPF
 
       # check the DKIM headers, if any
       ok, signatures = pdkim_verify_an_email(PDKIM_INPUT_NORMAL, @mail[:data][:text])
@@ -449,13 +397,28 @@ puts " #{@enc_ind}> *669* Investigate why this got here" # DEBUG!
         @mail[:signatures] << [signature[:domain], signature[:verify_status], DkimOutcomes[signature[:verify_status]]]
       end if ok==PDKIM_OK
 
+      # check the SPF, if any
+      begin
+        spf_server = SPF::Server.new
+        request = SPF::Request.new(
+          versions:      [1, 2],
+          scope:         'mfrom',
+          identity:      @mail[:mailfrom][:url],
+          ip_address:    @mail[:remote_ip],
+          helo_identity: @mail[:ehlo][:domain])
+        @mail[:mailfrom][:spf] = spf_server.process(request).code
+      rescue SPF::OptionRequiredError => e
+        @log.info("%06d"%Process::pid) {"SPF check failed: #{e.to_s}"}
+        @mail[:mailfrom][:spf] = :fail
+      end
+
       # test all the RCPT TOs
-      all_rcptto_accepted = true
-      @mail[:rcptto].each { |p| all_rcptto_accepted = false if !p[:accepted] } if @mail.has_key?(:rcptto)
+      any_rcptto_accepted = false
+      @mail[:rcptto].each { |p| any_rcptto_accepted = true if p[:accepted] } if @mail.has_key?(:rcptto)
       # passed thru the guantlet with no failures
       @mail[:accepted] = true \
         if @mail[:mailfrom][:accepted] &&
-          all_rcptto_accepted &&
+          any_rcptto_accepted &&
           @mail[:data][:accepted] &&
           @has_level_5_warnings==false
 
@@ -465,7 +428,8 @@ puts " #{@enc_ind}> *669* Investigate why this got here" # DEBUG!
     end
 
 #=======================================================================
-# these are the defaults, in case the user doesn't override
+# these are the defaults, in case the user doesn't override--you can
+# override these in your Receiver class in order to add tests
 
     def connect(remote_ip)
       return "220 2.0.0 ESMTP RubyMTA 0.01 #{Time.new.strftime("%^a, %d %^b %Y %H:%M:%S %z")}"

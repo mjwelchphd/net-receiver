@@ -1,8 +1,12 @@
 # Build and install the gem
 gem build net-receiver.gemspec
-sudo gem install net-receiver-1.1.0.gem
+sudo gem install net-receiver-1.2.0.gem
 
 sudo gem uninstall net-receiver
+
+#--------------------------------------------
+#--- be sure everything is updated in git ---
+#--------------------------------------------
 
 # first time
 git remote add origin https://github.com/mjwelchphd/net-receiver.git
@@ -11,7 +15,7 @@ git remote add origin https://github.com/mjwelchphd/net-receiver.git
 git push -u origin master
 
 # push the gem
-gem push net-receiver-1.1.0.gem
+gem push net-receiver-1.2.0.gem
 
 
 # another way to create a self-signed certificate
