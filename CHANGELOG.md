@@ -1,3 +1,27 @@
+# v1.2.1
+Changed the way the headers are stored in the data section of an ItemOfMail object. They are stored in a Hash, and each key is 
+made all lower case and hyphens are converted to underscores. Each value is the entire line of the original header, as is.
+
+for example:
+
+```text
+  :data=>{
+    :accepted=>true,
+    :value=>"",
+    :headers=>{
+      :date=>"Date: Wed, 05 Oct 2016 14:02:38 -0700",
+      :to=>"To: abuse@example.com",
+      :from=>"From: admin@example.com",
+      :subject=>"Subject: test Wed, 05 Oct 2016 14:02:38 -0700",
+      :x_mailer=>"X-Mailer: swaks v20130209.0 jetmore.org/john/code/swaks/"
+    },
+    :text=>[
+      "This is a test mailing",
+      ""
+    ]
+  }
+```
+
 # v1.2.0
 Simplified the send_text and recv_text by moving the error handling to the end of Receiver#receive, and removing redundent statements. Removed the code which handled those errors (SLAM and TIMEOUT) from the Patterns list, and removed the associated handler code.
 

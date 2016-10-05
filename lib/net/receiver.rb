@@ -374,9 +374,9 @@ module Net
           body[:accepted] = true
           break
         end
-        m = text.match(/^(.+?):(.+)$/)
+        m = text.match(/^(.+?):.+$/)
         return "501 5.5.2 Malformed header" if m.nil?
-        headers[m[1]] = m[2]
+        headers[m[1].downcase.gsub('-','_').to_sym] = text
       end
 
       # get the body into an array of strings
