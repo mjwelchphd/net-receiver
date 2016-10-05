@@ -8,6 +8,8 @@ Currently, I'm using this as the base for an MTA written in Ruby. There's no int
 
 That being said, If you use this for anything, and want me to make special changes that don't interfere with my purpose, email me at mjwelchphd@gmail.com, and I'll work with you as best I can.
 
+The source code for this project is located at https://github.com/mjwelchphd/net-receiver
+
 # General
 
 This gem sits on top of my net-server gem, and receives standard emails. It has only a few checks that it makes on the incoming email, leaving the specialized checks up to you. You can change it's behavior by overriding base methods, and adding your own programming; don't worry, I'll show you how. Your Ruby overrides are the same as witing a configuration file for a standard MTA.
@@ -113,6 +115,7 @@ The method `psych_value` is used with MAIL FROM and RCPT TO commands to validate
     - characters ! # $ % & ' * + - / = ? ^ _ ` { | } ~
     - dots, which must not be first or last character, and must not appear two or more times consecutively
   4. If the option is selected, it does a Dig MX lookup, followed by a Dig A (IP) lookup if the MX was successful. This is helpful to determine if the sender's domain is legitimate.
+  5. `psych_value` also checks for an empty address ("<>") which means it's a bounced message.
 
 The main method is the `receive` method (which is called by net-server when a connection is requested). Receive uses the aforementioned table to read the commands and process them. It also allocates an 'item of mail' structure to put it's findings in.
 
@@ -179,23 +182,23 @@ Here is a sample structure for an authenticated email.
 {
   :local_port=>"2001",
   :local_hostname=>"mail.example.com",
-  :remote_port=>"38436",
-  :remote_hostname=>"cpe-107-185-187-182.socal.res.rr.com",
-  :remote_ip=>"::ffff:107.185.187.182",
-  :id=>"ODZM0W-PRPAYD-49",
-  :time=>"2016-09-24 02:38:56 +0000",
+  :remote_port=>"54278",
+  :remote_hostname=>"example.com",
+  :remote_ip=>"::ffff:107.105.187.182",
+  :id=>"OELGQA-A58QI3-AA",
+  :time=>"2016-10-05 21:51:46 +0000",
   :accepted=>true,
   :prohibited=>false,
   :encrypted=>true,
-  :authenticated=>"admin@example.com",
+  :authenticated=>false,
   :connect=>{
-    :value=>"::ffff:107.185.187.182",
+    :value=>"::ffff:107.105.187.182",
     :domain=>nil
   },
   :ehlo=>{
-    :value=>"mail.example.com",
-    :rip=>"23.253.107.107",
-    :fip=>"23.253.107.107",
+    :value=>"example.com",
+    :rip=>"93.184.216.34",
+    :fip=>"93.184.216.34",
     :domain=>"mail.example.com"
   },
   :mailfrom=>{
@@ -207,45 +210,48 @@ Here is a sample structure for an authenticated email.
     :domain=>"example.com",
     :bad_characters=>false,
     :wrong_dot_usage=>false,
-    :ip=>"23.253.107.107",
+    :ip=>"93.184.216.34",
     :mxs=>[
       "mail.example.com"
     ],
     :ips=>[
-      "23.253.107.107"
-    ]
+      "93.184.216.34"
+    ],
+    :spf=>:pass
   },
   :rcptto=>[
     {
       :accepted=>true,
-      :value=>"<coco@example.com>",
+      :value=>"<abuse@example.com>",
       :name=>"",
-      :url=>"coco@example.com",
-      :local_part=>"coco",
-      :domain=>"example.com"
+      :url=>"abuse@example.com",
+      :local_part=>"abuse",
+      :domain=>"example.com",
+      :bad_characters=>false,
+      :wrong_dot_usage=>false,
+      :ip=>"93.184.216.34",
+      :mxs=>[
+        "mail.example.com"
+      ],
+      :ips=>[
+        "93.184.216.34"
+      ]
     }
   ],
   :data=>{
     :accepted=>true,
     :value=>"",
-    :text=>[
-      "Date: Fri, 23 Sep 2016 19:38:55 -0700",
-      "To: coco@example.com",
-      "From: admin@example.com",
-      "Subject: test Fri, 23 Sep 2016 19:38:55 -0700",
-      "X-Mailer: swaks v20130209.0 jetmore.org/john/code/swaks/",
-      "",
-      "This is a test mailing",
-      "",
-      "."
-    ],
     :headers=>{
-      :date=>"Fri, 23 Sep 2016 19:38:55 -0700",
-      :to=>"coco@example.com",
-      :from=>"admin@example.com",
-      :subject=>"test Fri, 23 Sep 2016 19:38:55 -0700",
-      :x_mailer=>"swaks v20130209.0 jetmore.org/john/code/swaks/"
-    }
+      :date=>"Date: Wed, 05 Oct 2016 14:51:46 -0700",
+      :to=>"To: abuse@example.com",
+      :from=>"From: admin@example.com",
+      :subject=>"Subject: test Wed, 05 Oct 2016 14:51:46 -0700",
+      :x_mailer=>"X-Mailer: swaks v20130209.0 jetmore.org/john/code/swaks/"
+    },
+    :text=>[
+      "This is a test mailing",
+      ""
+    ]
   }
 }
 ```
@@ -299,6 +305,7 @@ Here is a sample structure for an authenticated email.
 | :ip | This is the IP from looking up the domain. |
 | :mxs | This is a list of one or more mail servers for this domain. |
 | :ips | This is a list of IPs obtained by looking up the MXs above. |
+| :spf | This is the SPF check on the sender. It will normally be :pass or :fail. To learn more about SPF, go to `http://www.openspf.org/`. |
 
 ### RCPT TO Values (a list)
 
@@ -327,14 +334,13 @@ Here's an example:
 
 |Key |Value |
 |:--- |:--- |
-| :date | "Fri, 23 Sep 2016 19:38:55 -0700", |
-| :to | "coco@example.com", |
-| :from | "admin@example.com", |
-| :subject | "test Fri, 23 Sep 2016 19:38:55 -0700", |
-| :x_mailer | "swaks v20130209.0 jetmore.org/john/code/swaks/" |
+| :date | "Date: Wed, 05 Oct 2016 14:51:46 -0700" |
+| :to | "To: abuse@example.com" |
+| :from | "From: admin@example.com" |
+| :subject | "Subject: test Wed, 05 Oct 2016 14:51:46 -0700" |
+| :x_mailer | "X-Mailer: swaks v20130209.0 jetmore.org/john/code/swaks/" |
 
-
-The headers are put into a hash like this so that you may easily locate them, or test to see if they exist or not. Modifying this Hash *does not* modify the actual email.
+The headers are put into a hash like this so that you may easily locate them, or test to see if they exist or not.
 
 
 FIN
