@@ -1,3 +1,11 @@
+# v1.2.3
+Changed `ItemOfMail#reconstituted_email` to properly reconstitute the email with the changes made in v1.2.1.
+
+
+# v1.2.2
+Updated the README.md.
+
+
 # v1.2.1
 Changed the way the headers are stored in the data section of an ItemOfMail object. They are stored in a Hash, and each key is 
 made all lower case and hyphens are converted to underscores. Each value is the entire line of the original header, as is.
