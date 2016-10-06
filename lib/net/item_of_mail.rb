@@ -36,7 +36,7 @@ module Net
 
     def reconstituted_email
       text = []
-      self[:data][:headers].each { |k,v| text << "#{k}:#{v}" }
+      self[:data][:headers].each { |k,v| text << "#{v}" }
       text.concat(self[:data][:text])
       text.join(CRLF)+CRLF
     end
